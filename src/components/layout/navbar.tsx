@@ -1,10 +1,11 @@
+
 "use client";
 
 import Link from "next/link";
 import { siteConfig } from "@/config/site";
 import { Button } from "@/components/ui/button";
 import { AuthButton } from "@/components/auth/auth-button";
-import { TestTubeDiagonalIcon } from "lucide-react"; // Placeholder logo icon
+import { TestTubeDiagonalIcon } from "lucide-react"; 
 
 export function Navbar() {
   return (
@@ -28,10 +29,10 @@ export function Navbar() {
         <div className="flex flex-1 items-center justify-end space-x-4">
           <AuthButton />
         </div>
-        {/* Mobile Menu Trigger (example) */}
+        
         <Button variant="ghost" className="md:hidden">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
-          <span className="sr-only">Toggle menu</span>
+          <span className="sr-only">Alternar menú</span>
         </Button>
       </div>
     </header>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -12,15 +13,15 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ReportTranslationProps {
   reportText: string;
-  reportCategory: string; // Can be used for context if needed
+  reportCategory: string; 
 }
 
 const AVAILABLE_LANGUAGES = [
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'pt', name: 'Portuguese' },
+  { code: 'es', name: 'Español' },
+  { code: 'fr', name: 'Francés' },
+  { code: 'de', name: 'Alemán' },
+  { code: 'ja', name: 'Japonés' },
+  { code: 'pt', name: 'Portugués' },
 ];
 
 export function ReportTranslation({ reportText, reportCategory }: ReportTranslationProps) {
@@ -31,7 +32,7 @@ export function ReportTranslation({ reportText, reportCategory }: ReportTranslat
 
   const handleTranslate = async () => {
     if (!targetLanguage || !reportText) {
-      toast({ title: "Translation Error", description: "Please select a target language and ensure there is text to translate.", variant: "destructive"});
+      toast({ title: "Error de Traducción", description: "Por favor, selecciona un idioma de destino y asegúrate de que haya texto para traducir.", variant: "destructive"});
       return;
     }
 
@@ -47,14 +48,15 @@ export function ReportTranslation({ reportText, reportCategory }: ReportTranslat
       
       if (output && output[targetLanguage]) {
         setTranslatedText(output[targetLanguage]);
-        toast({ title: "Translation Successful", description: `Report translated to ${AVAILABLE_LANGUAGES.find(l => l.code === targetLanguage)?.name}.`});
+        const langName = AVAILABLE_LANGUAGES.find(l => l.code === targetLanguage)?.name || targetLanguage;
+        toast({ title: "Traducción Exitosa", description: `Reporte traducido a ${langName}.`});
       } else {
-        throw new Error('Translation not found in AI response.');
+        throw new Error('Traducción no encontrada en la respuesta de la IA.');
       }
     } catch (error) {
       console.error("Translation error:", error);
-      toast({ title: "Translation Failed", description: (error as Error).message || "Could not translate the report.", variant: "destructive"});
-      setTranslatedText("Error: Could not translate the report.");
+      toast({ title: "Traducción Fallida", description: (error as Error).message || "No se pudo traducir el reporte.", variant: "destructive"});
+      setTranslatedText("Error: No se pudo traducir el reporte.");
     } finally {
       setIsLoading(false);
     }
@@ -63,18 +65,18 @@ export function ReportTranslation({ reportText, reportCategory }: ReportTranslat
   return (
     <Card className="mt-4 bg-muted/30">
       <CardHeader className="pb-2 pt-4 px-4">
-        <CardTitle className="text-md font-headline flex items-center"><LanguagesIcon className="w-5 h-5 mr-2 text-primary"/>Translate Report</CardTitle>
-        <CardDescription className="text-xs">Translate the report description into another language.</CardDescription>
+        <CardTitle className="text-md font-headline flex items-center"><LanguagesIcon className="w-5 h-5 mr-2 text-primary"/>Traducir Reporte</CardTitle>
+        <CardDescription className="text-xs">Traduce la descripción del reporte a otro idioma.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 px-4 pb-4">
         <div className="flex items-center space-x-2">
           <Select onValueChange={setTargetLanguage} value={targetLanguage}>
             <SelectTrigger className="w-full sm:w-[180px] bg-background">
-              <SelectValue placeholder="Select language" />
+              <SelectValue placeholder="Seleccionar idioma" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectLabel>Target Languages</SelectLabel>
+                <SelectLabel>Idiomas de Destino</SelectLabel>
                 {AVAILABLE_LANGUAGES.map((lang) => (
                   <SelectItem key={lang.code} value={lang.code}>
                     {lang.name}
@@ -85,7 +87,7 @@ export function ReportTranslation({ reportText, reportCategory }: ReportTranslat
           </Select>
           <Button onClick={handleTranslate} disabled={isLoading || !targetLanguage}>
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Translate
+            Traducir
           </Button>
         </div>
         {translatedText && (
@@ -94,7 +96,7 @@ export function ReportTranslation({ reportText, reportCategory }: ReportTranslat
             readOnly
             rows={3}
             className="mt-2 bg-background"
-            placeholder="Translated text will appear here."
+            placeholder="El texto traducido aparecerá aquí."
           />
         )}
       </CardContent>

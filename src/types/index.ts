@@ -1,45 +1,47 @@
+
 export interface User {
   id: string;
   name: string | null;
   email: string | null;
   avatarUrl?: string;
-  role: 'citizen' | 'moderator' | 'admin';
-  district?: string; // From predefined list
-  birthDate?: string; // ISO Date string
+  role: 'citizen' | 'moderator' | 'admin'; // Consider translating roles if displayed in UI
+  district?: string; 
+  birthDate?: string; 
 }
 
 export type ReportCategory = 
-  | 'Infrastructure' 
-  | 'Obstacles' 
-  | 'Abandoned Vehicles' 
-  | 'Drainage Issues' 
-  | 'Pollution' 
-  | 'Abandoned Animals' 
-  | 'Insecurity' 
-  | 'Violence' 
-  | 'Accidents' 
-  | 'Other';
+  | 'Infraestructura' 
+  | 'Obstáculos' 
+  | 'Vehículos Abandonados' 
+  | 'Problemas de Drenaje' 
+  | 'Contaminación' 
+  | 'Animales Abandonados' 
+  | 'Inseguridad' 
+  | 'Violencia' 
+  | 'Accidentes' 
+  | 'Otro';
 
-export type ReportUrgency = 'Low' | 'Medium' | 'High' | 'Urgent' | 'Critical';
+export type ReportUrgency = 'Baja' | 'Media' | 'Alta' | 'Urgente' | 'Crítica';
 
-export type ReportStatus = 'Pending' | 'In Process' | 'Solved' | 'Invalid' | 'Duplicate';
+export type ReportStatus = 'Pendiente' | 'En Proceso' | 'Resuelto' | 'Inválido' | 'Duplicado';
 
 export interface ReportLocation {
   latitude: number;
   longitude: number;
-  address?: string; // Optional, reverse geocoded
+  address?: string; 
 }
 
 export interface ReportMedia {
   type: 'image' | 'video';
   url: string;
-  thumbnailUrl?: string; // For videos
+  thumbnailUrl?: string; 
+  dataAiHint?: string; // Keep hints in English for image search consistency
 }
 
 export interface Report {
   id: string;
   userId: string;
-  user?: User; // Populated for display
+  user?: User; 
   category: ReportCategory;
   subCategory?: string;
   description: string;
@@ -47,10 +49,10 @@ export interface Report {
   location: ReportLocation;
   media: ReportMedia[];
   status: ReportStatus;
-  createdAt: string; // ISO Date string
-  updatedAt: string; // ISO Date string
+  createdAt: string; 
+  updatedAt: string; 
   upvotes: number;
   downvotes: number;
-  currentUserVote?: 'up' | 'down' | null; // For logged-in user's vote status
-  internalComments?: Array<{ userId: string; comment: string; createdAt: string }>; // For moderators/admins
+  currentUserVote?: 'up' | 'down' | null; 
+  internalComments?: Array<{ userId: string; comment: string; createdAt: string }>; 
 }

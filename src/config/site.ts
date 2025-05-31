@@ -1,21 +1,22 @@
+
 export type SiteConfig = typeof siteConfig;
 
 export const siteConfig = {
-  name: "CommunityPulse",
+  name: "PulsoComunitario",
   description:
-    "Report incidents and improve your community with CommunityPulse.",
+    "Reporta incidentes y mejora tu comunidad con PulsoComunitario.",
   mainNav: [
     {
-      title: "Map",
+      title: "Mapa",
       href: "/",
     },
     {
-      title: "New Report",
+      title: "Nuevo Reporte",
       href: "/report/new",
     },
     {
-      title: "My Reports",
-      href: "/reports/mine", // Example protected route
+      title: "Mis Reportes",
+      href: "/reports/mine", 
     },
   ],
 };

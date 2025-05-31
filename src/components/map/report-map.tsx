@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -14,14 +15,14 @@ interface ReportMapProps {
   reports: Report[];
   initialCenter?: { lat: number; lng: number };
   onMarkerClick?: (reportId: string) => void;
-  isInteractiveFormMap?: boolean; // Special mode for report form
-  onMapClick?: (coords: { lat: number; lng: number }) => void; // For report form
-  selectedLocation?: { lat: number; lng: number } | null; // For report form
+  isInteractiveFormMap?: boolean; 
+  onMapClick?: (coords: { lat: number; lng: number }) => void; 
+  selectedLocation?: { lat: number; lng: number } | null; 
 }
 
 export function ReportMap({
   reports,
-  initialCenter = { lat: 34.052235, lng: -118.243683 }, // Default to Los Angeles
+  initialCenter = { lat: 34.052235, lng: -118.243683 }, 
   onMarkerClick,
   isInteractiveFormMap = false,
   onMapClick,
@@ -47,8 +48,8 @@ export function ReportMap({
   if (!GOOGLE_MAPS_API_KEY) {
     return (
       <div className="p-4 border border-destructive bg-destructive/10 rounded-md text-destructive-foreground">
-        <p className="font-semibold">Google Maps API Key is missing.</p>
-        <p>Please provide NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your environment variables to display the map.</p>
+        <p className="font-semibold">Falta la clave API de Google Maps.</p>
+        <p>Por favor, proporciona NEXT_PUBLIC_GOOGLE_MAPS_API_KEY en tus variables de entorno para mostrar el mapa.</p>
       </div>
     );
   }
@@ -109,7 +110,7 @@ export function ReportMap({
 
 function PinIcon({ report }: { report: Report }) {
   const pinColor = URGENCY_HSL_COLORS[report.urgency] || 'hsl(var(--muted))';
-  const isCritical = report.urgency === 'Critical';
+  const isCritical = report.urgency === 'Crítica'; // Check against translated value
 
   return (
     <div
@@ -119,7 +120,7 @@ function PinIcon({ report }: { report: Report }) {
         backgroundColor: pinColor,
         borderColor: isCritical ? 'hsl(var(--destructive))' : 'transparent',
         borderWidth: isCritical ? '2px' : '0px',
-        boxShadow: isCritical ? `0 0 8px ${URGENCY_HSL_COLORS.Critical}` : '0 2px 4px rgba(0,0,0,0.2)',
+        boxShadow: isCritical ? `0 0 8px ${URGENCY_HSL_COLORS.Crítica}` : '0 2px 4px rgba(0,0,0,0.2)',
        }}
     >
       <CategoryIcon category={report.category} className="w-4 h-4 text-primary-foreground" />
@@ -141,7 +142,7 @@ function PinIcon({ report }: { report: Report }) {
 function MapInstructions() {
   return (
     <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-background/80 p-2 rounded-md shadow text-sm text-foreground backdrop-blur-sm">
-      Click on the map to select the incident location.
+      Haz clic en el mapa para seleccionar la ubicación del incidente.
     </div>
   );
 }
