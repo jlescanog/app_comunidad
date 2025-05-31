@@ -24,51 +24,55 @@ import { useState, useEffect } from "react";
 import { ReportMap } from "@/components/map/report-map";
 import { Loader2, MapPinIcon, UploadCloudIcon } from "lucide-react";
 import type { Report, ReportMedia } from "@/types";
-import { addSessionReport } from "@/lib/session-store";
-import { MOCK_USER_LOGGED_IN } from "@/lib/mock-data"; // Para asociar el reporte al usuario mock
+import { useAuth } from "@/hooks/use-auth";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import Image from 'next/image';
 
 
-// Mock server action
-async function submitReportAction(data: ReportFormData): Promise<{ success: boolean; message: string; reportId?: string }> {
-  console.log("Submitting report:", data);
+async function submitReportAction(data: ReportFormData, userId: string, userDisplayName: string | null, userAvatarUrl?: string): Promise<{ success: boolean; message: string; reportId?: string }> {
+  console.log("Submitting report to Firestore:", data);
 
-  const newReport: Report = {
-    id: `session-report-${Date.now()}`,
-    userId: MOCK_USER_LOGGED_IN.id, // Asociar con el usuario mock "user-123"
-    user: MOCK_USER_LOGGED_IN, // Adjuntar el objeto de usuario mock
+  const newReportData = {
+    userId: userId,
+    user: { // Denormalizing some user info for easier display on reports
+      id: userId,
+      name: userDisplayName,
+      avatarUrl: userAvatarUrl || "https://placehold.co/100x100.png", // Fallback avatar
+      email: null, // Not storing email directly in report for privacy in this example
+      role: 'citizen',
+    },
     category: data.category,
     description: data.description,
     urgency: data.urgency,
     location: {
-      latitude: data.latitude!, // Sabemos que está validado por el schema y la lógica onSubmit
-      longitude: data.longitude!, // Sabemos que está validado por el schema y la lógica onSubmit
-      address: `Lat: ${data.latitude!.toFixed(4)}, Lng: ${data.longitude!.toFixed(4)}`, // Dirección simple por ahora
+      latitude: data.latitude!,
+      longitude: data.longitude!,
+      address: `Lat: ${data.latitude!.toFixed(4)}, Lng: ${data.longitude!.toFixed(4)}`,
     },
-    media: data.media || [], // Usar media del form data
-    status: "Pendiente",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    media: data.media || [],
+    status: "Pendiente" as const, // Explicitly type as ReportStatus
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
     upvotes: 0,
     downvotes: 0,
     currentUserVote: null,
     internalComments: [],
   };
 
-  addSessionReport(newReport); // Añadir al almacén de sesión
-
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Simular delay de red
-
-  if (Math.random() > 0.05) { // Aumentar la probabilidad de éxito para pruebas
-    return { success: true, message: "¡Reporte enviado exitosamente (en sesión)!", reportId: newReport.id };
-  } else {
-    return { success: false, message: "No se pudo enviar el reporte (simulación de error)." };
+  try {
+    const docRef = await addDoc(collection(db, "reports"), newReportData);
+    return { success: true, message: "¡Reporte enviado exitosamente a Firestore!", reportId: docRef.id };
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    return { success: false, message: "No se pudo enviar el reporte a Firestore." };
   }
 }
 
 
 export function ReportForm() {
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showMap, setShowMap] = useState(false);
@@ -139,12 +143,20 @@ export function ReportForm() {
         toast({ title: "Archivo no válido", description: "Por favor, selecciona un archivo de imagen.", variant: "destructive" });
       }
     }
-    // Reset file input to allow re-selection of the same file after clearing
     event.target.value = '';
   };
 
 
   async function onSubmit(data: ReportFormData) {
+    if (!user) {
+      toast({
+        title: "Autenticación Requerida",
+        description: "Por favor, inicia sesión para enviar un reporte.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     if (!data.latitude || !data.longitude) {
         form.setError("latitude", { type: "manual", message: form.formState.errors.latitude?.message || "Por favor, selecciona una ubicación en el mapa o usa el GPS." });
@@ -152,7 +164,7 @@ export function ReportForm() {
         return;
     }
 
-    const result = await submitReportAction(data);
+    const result = await submitReportAction(data, user.id, user.name, user.avatarUrl);
     setIsSubmitting(false);
 
     if (result.success) {
@@ -160,7 +172,7 @@ export function ReportForm() {
         title: "¡Reporte Enviado!",
         description: result.message,
       });
-      form.reset(); // This will reset to defaultValues, including media: []
+      form.reset(); 
       setSelectedLocation(null);
       setSelectedImagePreview(null);
     } else {
@@ -170,6 +182,10 @@ export function ReportForm() {
         variant: "destructive",
       });
     }
+  }
+
+  if (authLoading) {
+    return <div className="text-center p-8">Cargando autenticación...</div>;
   }
 
   return (
@@ -323,9 +339,9 @@ export function ReportForm() {
             />
         </FormItem>
 
-        <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+        <Button type="submit" disabled={isSubmitting || authLoading || !user} className="w-full sm:w-auto">
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Enviar Reporte
+          {authLoading ? "Verificando usuario..." : !user ? "Inicia Sesión para Reportar" : "Enviar Reporte"}
         </Button>
       </form>
     </Form>

@@ -4,7 +4,7 @@ export interface User {
   name: string | null;
   email: string | null;
   avatarUrl?: string;
-  role: 'citizen' | 'moderator' | 'admin'; // Consider translating roles if displayed in UI
+  role: 'citizen' | 'moderator' | 'admin'; 
   district?: string; 
   birthDate?: string; 
 }
@@ -33,9 +33,9 @@ export interface ReportLocation {
 
 export interface ReportMedia {
   type: 'image' | 'video';
-  url: string;
+  url: string; // For images, this could be a Data URI or a URL from Firebase Storage
   thumbnailUrl?: string; 
-  dataAiHint?: string; // Keep hints in English for image search consistency
+  dataAiHint?: string; 
 }
 
 export interface Report {
@@ -47,10 +47,10 @@ export interface Report {
   description: string;
   urgency: ReportUrgency;
   location: ReportLocation;
-  media: ReportMedia[];
+  media: ReportMedia[]; // Array of media items
   status: ReportStatus;
-  createdAt: string; 
-  updatedAt: string; 
+  createdAt: string; // Store as ISO string, or handle Firebase Timestamp conversion
+  updatedAt: string; // Store as ISO string, or handle Firebase Timestamp conversion
   upvotes: number;
   downvotes: number;
   currentUserVote?: 'up' | 'down' | null; 

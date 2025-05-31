@@ -1,75 +1,102 @@
 
 "use client";
 
-// import { useAuth } from "@/hooks/use-auth";
-// import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
 import type { Report } from "@/types";
-import { MOCK_REPORTS } from "@/lib/mock-data"; 
-import { getSessionReportsByUserId } from "@/lib/session-store"; // Importar para reportes de sesión
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs, orderBy, Timestamp } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CategoryIcon } from "@/components/icons/category-icon";
 import { URGENCY_HSL_COLORS } from "@/lib/constants";
 import { formatDistanceToNow } from 'date-fns';
-// import { es } from 'date-fns/locale'; // Import Spanish locale for date-fns if desired
 import Link from "next/link";
-import { FileTextIcon, MessageSquareIcon, ThumbsUpIcon, Trash2Icon, RotateCwIcon } from "lucide-react";
+import { FileTextIcon, MessageSquareIcon, ThumbsUpIcon, Trash2Icon, RotateCwIcon, Loader2 } from "lucide-react";
 import { ReportTranslation } from "@/components/reports/report-translation";
 
-// Mock fetching user's reports
-async function fetchUserReports(userId: string): Promise<Report[]> {
-  console.log(`Fetching reports for user ${userId}`);
-  await new Promise(resolve => setTimeout(resolve, 500)); // Simular delay
-
-  const hardcodedReports = MOCK_REPORTS.filter(report => report.userId === userId);
-  const sessionAddedReports = getSessionReportsByUserId(userId);
-  
-  // Combinar reportes hardcodeados y de sesión. Los de sesión primero para que aparezcan arriba.
-  const allUserReports = [...sessionAddedReports, ...hardcodedReports];
-  
-  // Simple deduplication basada en ID para evitar duplicados si se recarga
-  const uniqueReports = Array.from(new Map(allUserReports.map(report => [report.id, report])).values());
-  
-  return uniqueReports;
+async function fetchUserReportsFromFirestore(userId: string): Promise<Report[]> {
+  if (!userId) return [];
+  try {
+    const reportsRef = collection(db, "reports");
+    const q = query(reportsRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    const reports: Report[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      reports.push({
+        id: doc.id,
+        ...data,
+        createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+        updatedAt: (data.updatedAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+      } as Report);
+    });
+    return reports;
+  } catch (error) {
+    console.error("Error fetching user reports from Firestore:", error);
+    return []; // Return empty array on error
+  }
 }
 
 
 export default function MyReportsPage() {
-  // const { user, loading: authLoading } = useAuth();
-  // const router = useRouter();
+  const { user, loading: authLoading, firebaseUser } = useAuth();
+  const router = useRouter();
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0); // Para forzar re-fetch
-  
-  const mockUser = { id: "user-123" }; // Mocked user for now
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const loadReports = useCallback(async () => {
+    if (firebaseUser) {
+      setIsLoading(true);
+      const fetchedReports = await fetchUserReportsFromFirestore(firebaseUser.uid);
+      setReports(fetchedReports);
+      setIsLoading(false);
+    } else {
+      setReports([]); // Clear reports if no user
+      setIsLoading(false);
+    }
+  }, [firebaseUser]);
 
   useEffect(() => {
-    // if (!authLoading && !user) {
-    //   router.push('/login?redirect=/reports/mine');
-    //   return;
-    // }
-    if (mockUser) {
-      setIsLoading(true); // Mostrar carga al refrescar
-      fetchUserReports(mockUser.id).then(data => {
-        setReports(data);
-        setIsLoading(false);
-      });
-    } else if (!mockUser /*!authLoading && !user*/) {
-        setIsLoading(false); // Not logged in, stop loading
+    if (!authLoading && !firebaseUser) {
+      router.push("/"); // Redirect to home or login page if not logged in
+      return;
     }
-  }, [/* user, authLoading, router */ refreshKey]); // Añadir refreshKey a las dependencias
+    if (firebaseUser) {
+      loadReports();
+    }
+  }, [firebaseUser, authLoading, router, refreshKey, loadReports]);
   
   const handleRefresh = () => {
     setRefreshKey(prevKey => prevKey + 1);
   };
 
-  if (isLoading) {
-    return <div className="text-center p-8">Cargando tus reportes...</div>;
+  if (authLoading || (isLoading && firebaseUser)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Cargando tus reportes...</p>
+      </div>
+    );
+  }
+  
+  if (!firebaseUser && !authLoading) {
+     return (
+      <div className="text-center p-8">
+        <FileTextIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Autenticación Requerida</h2>
+        <p className="text-muted-foreground mb-4">Por favor, inicia sesión para ver tus reportes.</p>
+        <Button asChild>
+          <Link href="/">Ir al Inicio</Link>
+        </Button>
+      </div>
+    );
   }
 
-  if (reports.length === 0 && !isLoading) { // Asegurar que no está cargando
+  if (reports.length === 0 && !isLoading) {
     return (
       <div className="text-center p-8">
         <FileTextIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -107,7 +134,7 @@ export default function MyReportsPage() {
                   {report.category}
                 </CardTitle>
                 <CardDescription>
-                  Enviado {formatDistanceToNow(new Date(report.createdAt), { addSuffix: true /*, locale: es */ })}
+                  Enviado {formatDistanceToNow(new Date(report.createdAt), { addSuffix: true })}
                 </CardDescription>
               </div>
               <Badge style={{ backgroundColor: URGENCY_HSL_COLORS[report.urgency], color: 'hsl(var(--primary-foreground))' }} variant="default" className="text-sm px-3 py-1">
@@ -116,12 +143,24 @@ export default function MyReportsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground mb-3">{report.description}</p>
+            <p className="text-muted-foreground mb-3 whitespace-pre-wrap">{report.description}</p>
+             {report.media && report.media.length > 0 && report.media[0].type === 'image' && (
+              <div className="my-3">
+                <Image
+                  src={report.media[0].url}
+                  alt={report.category || 'Imagen del reporte'}
+                  width={300}
+                  height={200}
+                  className="rounded-md object-contain border max-h-64"
+                  data-ai-hint={report.media[0].dataAiHint || "report image"}
+                />
+              </div>
+            )}
             <div className="text-sm text-muted-foreground">
               <p><strong>Estado:</strong> <span className={`font-semibold ${
                 report.status === 'Resuelto' ? 'text-green-600' : 
                 report.status === 'En Proceso' ? 'text-blue-600' : 
-                'text-orange-600' // Assuming 'Pendiente' or other fall into orange
+                'text-orange-600'
               }`}>{report.status}</span></p>
               <p><strong>Ubicación:</strong> {report.location.address || `Lat: ${report.location.latitude.toFixed(4)}, Lng: ${report.location.longitude.toFixed(4)}`}</p>
             </div>

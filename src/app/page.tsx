@@ -1,8 +1,48 @@
 
+"use client";
+
 import { ReportMap } from "@/components/map/report-map";
-import { MOCK_REPORTS } from "@/lib/mock-data"; 
+import { useEffect, useState } from "react";
+import type { Report } from "@/types";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, orderBy, Timestamp, query as firestoreQuery } from "firebase/firestore";
+import { Loader2 } from "lucide-react";
+
+async function fetchAllReportsFromFirestore(): Promise<Report[]> {
+  try {
+    const reportsRef = collection(db, "reports");
+    const q = firestoreQuery(reportsRef, orderBy("createdAt", "desc")); // Order by creation time
+    const querySnapshot = await getDocs(q);
+    const reports: Report[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      reports.push({
+        id: doc.id,
+        ...data,
+        // Ensure createdAt and updatedAt are ISO strings
+        createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+        updatedAt: (data.updatedAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+      } as Report);
+    });
+    return reports;
+  } catch (error) {
+    console.error("Error fetching all reports from Firestore:", error);
+    return [];
+  }
+}
 
 export default function HomePage() {
+  const [reports, setReports] = useState<Report[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchAllReportsFromFirestore().then(data => {
+      setReports(data);
+      setIsLoading(false);
+    });
+  }, []);
+
   return (
     <div className="flex flex-col gap-8">
       <section className="text-center">
@@ -13,7 +53,14 @@ export default function HomePage() {
           Visualiza e interactúa con los incidentes reportados por la comunidad.
         </p>
       </section>
-      <ReportMap reports={MOCK_REPORTS} />
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center min-h-[300px]">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground">Cargando mapa y reportes...</p>
+        </div>
+      ) : (
+        <ReportMap reports={reports} />
+      )}
     </div>
   );
 }
