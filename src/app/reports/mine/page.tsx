@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useAuth } from "@/hooks/use-auth";
+// import { useAuth } from "@/hooks/use-auth"; // Auth no longer used
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import type { Report } from "@/types";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, orderBy, Timestamp } from "firebase/firestore";
+import { collection, query, getDocs, orderBy, Timestamp } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,14 @@ import { formatDistanceToNow } from 'date-fns';
 import Link from "next/link";
 import { FileTextIcon, MessageSquareIcon, ThumbsUpIcon, Trash2Icon, RotateCwIcon, Loader2 } from "lucide-react";
 import { ReportTranslation } from "@/components/reports/report-translation";
+import Image from "next/image"; // Import Next Image
 
-async function fetchUserReportsFromFirestore(userId: string): Promise<Report[]> {
-  if (!userId) return [];
+// Now fetches all reports instead of user-specific ones
+async function fetchAllReportsFromFirestore(): Promise<Report[]> {
   try {
     const reportsRef = collection(db, "reports");
-    const q = query(reportsRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
+    // No longer filtering by userId, fetching all, ordered by creation date
+    const q = query(reportsRef, orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
     const reports: Report[] = [];
     querySnapshot.forEach((doc) => {
@@ -35,73 +37,49 @@ async function fetchUserReportsFromFirestore(userId: string): Promise<Report[]> 
     });
     return reports;
   } catch (error) {
-    console.error("Error fetching user reports from Firestore:", error);
-    return []; // Return empty array on error
+    console.error("Error fetching all reports from Firestore:", error);
+    return []; 
   }
 }
 
 
-export default function MyReportsPage() {
-  const { user, loading: authLoading, firebaseUser } = useAuth();
+export default function AllReportsPage() { // Renamed page for clarity
+  // const { user, loading: authLoading, firebaseUser } = useAuth(); // Auth no longer used
   const router = useRouter();
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const loadReports = useCallback(async () => {
-    if (firebaseUser) {
-      setIsLoading(true);
-      const fetchedReports = await fetchUserReportsFromFirestore(firebaseUser.uid);
-      setReports(fetchedReports);
-      setIsLoading(false);
-    } else {
-      setReports([]); // Clear reports if no user
-      setIsLoading(false);
-    }
-  }, [firebaseUser]);
+    setIsLoading(true);
+    const fetchedReports = await fetchAllReportsFromFirestore(); // Fetches all reports
+    setReports(fetchedReports);
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
-    if (!authLoading && !firebaseUser) {
-      router.push("/"); // Redirect to home or login page if not logged in
-      return;
-    }
-    if (firebaseUser) {
-      loadReports();
-    }
-  }, [firebaseUser, authLoading, router, refreshKey, loadReports]);
+    loadReports();
+  }, [refreshKey, loadReports]);
   
   const handleRefresh = () => {
     setRefreshKey(prevKey => prevKey + 1);
   };
 
-  if (authLoading || (isLoading && firebaseUser)) {
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Cargando tus reportes...</p>
+        <p className="text-muted-foreground">Cargando reportes...</p>
       </div>
     );
   }
   
-  if (!firebaseUser && !authLoading) {
-     return (
-      <div className="text-center p-8">
-        <FileTextIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Autenticación Requerida</h2>
-        <p className="text-muted-foreground mb-4">Por favor, inicia sesión para ver tus reportes.</p>
-        <Button asChild>
-          <Link href="/">Ir al Inicio</Link>
-        </Button>
-      </div>
-    );
-  }
-
   if (reports.length === 0 && !isLoading) {
     return (
       <div className="text-center p-8">
         <FileTextIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
         <h2 className="text-xl font-semibold mb-2">Aún No Hay Reportes</h2>
-        <p className="text-muted-foreground mb-4">No has enviado ningún reporte. ¡Comienza creando uno!</p>
+        <p className="text-muted-foreground mb-4">No se han enviado reportes. ¡Comienza creando uno!</p>
         <div className="flex justify-center gap-2">
           <Button asChild>
             <Link href="/report/new">Crear Nuevo Reporte</Link>
@@ -118,7 +96,7 @@ export default function MyReportsPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold font-headline">Mis Reportes Enviados</h1>
+        <h1 className="text-3xl font-bold font-headline">Todos los Reportes</h1>
         <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
           <RotateCwIcon className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
           Refrescar
@@ -135,6 +113,7 @@ export default function MyReportsPage() {
                 </CardTitle>
                 <CardDescription>
                   Enviado {formatDistanceToNow(new Date(report.createdAt), { addSuffix: true })}
+                  {report.user && report.user.name !== "Usuario Anónimo" && ` por ${report.user.name}`}
                 </CardDescription>
               </div>
               <Badge style={{ backgroundColor: URGENCY_HSL_COLORS[report.urgency], color: 'hsl(var(--primary-foreground))' }} variant="default" className="text-sm px-3 py-1">
@@ -174,11 +153,12 @@ export default function MyReportsPage() {
               <MessageSquareIcon className="w-4 h-4 ml-3 mr-1" /> {report.internalComments?.length || 0}
             </div>
             <div>
-            {report.status === "Pendiente" && (
+            {/* For now, removing delete button as it would require auth/permissions */}
+            {/* {report.status === "Pendiente" && (
                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
                     <Trash2Icon className="w-4 h-4 mr-1" /> Eliminar
                 </Button>
-            )}
+            )} */}
             <Button variant="outline" size="sm" asChild className="ml-2">
                 <Link href={`/report/${report.id}`}>Ver Detalles</Link>
             </Button>

@@ -1,14 +1,22 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User as FirebaseUser, onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
-import { auth, googleAuthProvider } from '@/lib/firebase'; 
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import type { User as FirebaseUser } from 'firebase/auth'; // Still need this type for mock
 import type { User } from '@/types';
+
+// Define a mock anonymous user
+const MOCK_ANONYMOUS_USER: User = {
+  id: 'anonymous-user',
+  name: 'Usuario Anónimo',
+  email: null,
+  avatarUrl: 'https://placehold.co/100x100.png?text=A', // Generic avatar
+  role: 'citizen',
+};
 
 interface AuthContextType {
   user: User | null;
-  firebaseUser: FirebaseUser | null;
+  firebaseUser: FirebaseUser | null; // Keep for type consistency if other parts expect it
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -17,53 +25,20 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Default to the mock anonymous user, loading is false as there's no async auth check
+  const [user, setUser] = useState<User | null>(MOCK_ANONYMOUS_USER);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null); // No real Firebase user
+  const [loading, setLoading] = useState(false); // Not loading anything related to auth
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentFirebaseUser: FirebaseUser | null) => {
-      if (currentFirebaseUser) {
-        setFirebaseUser(currentFirebaseUser);
-        // Adapt FirebaseUser to your app's User type
-        // For now, let's assume some mapping, you might need to fetch more details from Firestore
-        setUser({
-          id: currentFirebaseUser.uid,
-          email: currentFirebaseUser.email,
-          name: currentFirebaseUser.displayName,
-          avatarUrl: currentFirebaseUser.photoURL || undefined,
-          role: 'citizen', // Default role, can be expanded later
-        });
-      } else {
-        setFirebaseUser(null);
-        setUser(null);
-      }
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
+  // Mock functions, they don't do anything
   const signInWithGoogle = async () => {
-    setLoading(true);
-    try {
-      await signInWithPopup(auth, googleAuthProvider);
-      // onAuthStateChanged will handle setting the user
-    } catch (error) {
-      console.error("Error signing in with Google:", error);
-      // setLoading(false); // onAuthStateChanged will set loading to false
-    }
-    // No need to setLoading(false) here as onAuthStateChanged handles it
+    console.log("signInWithGoogle called, but authentication is disabled.");
+    // setUser(MOCK_ANONYMOUS_USER); // Or some other mock user if needed for UI change
   };
 
   const signOut = async () => {
-    setLoading(true);
-    try {
-      await firebaseSignOut(auth);
-      // onAuthStateChanged will handle clearing the user
-    } catch (error) {
-      console.error("Error signing out:", error);
-      // setLoading(false); // onAuthStateChanged will set loading to false
-    }
+    console.log("signOut called, but authentication is disabled.");
+    // setUser(null); // Or back to anonymous
   };
   
   return (
@@ -80,3 +55,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+export { MOCK_ANONYMOUS_USER };

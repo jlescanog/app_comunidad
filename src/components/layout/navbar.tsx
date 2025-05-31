@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { siteConfig } from "@/config/site";
 import { Button } from "@/components/ui/button";
-import { AuthButton } from "@/components/auth/auth-button";
+// import { AuthButton } from "@/components/auth/auth-button"; // AuthButton removed
 import { TestTubeDiagonalIcon } from "lucide-react"; 
 
 export function Navbar() {
@@ -27,7 +27,7 @@ export function Navbar() {
           ))}
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-4">
-          <AuthButton />
+          {/* <AuthButton /> Removed */}
         </div>
         
         <Button variant="ghost" className="md:hidden">

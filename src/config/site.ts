@@ -15,7 +15,7 @@ export const siteConfig = {
       href: "/report/new",
     },
     {
-      title: "Mis Reportes",
+      title: "Todos los Reportes", // Changed from "Mis Reportes"
       href: "/reports/mine", 
     },
   ],

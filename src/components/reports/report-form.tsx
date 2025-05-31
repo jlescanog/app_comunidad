@@ -23,25 +23,26 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { ReportMap } from "@/components/map/report-map";
 import { Loader2, MapPinIcon, UploadCloudIcon } from "lucide-react";
-import type { Report, ReportMedia } from "@/types";
-import { useAuth } from "@/hooks/use-auth";
+import type { ReportMedia, User } from "@/types";
+// import { useAuth } from "@/hooks/use-auth"; // Auth no longer used here
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import Image from 'next/image';
 
+const ANONYMOUS_USER_DATA: User = {
+  id: "anonymous-user",
+  name: "Usuario Anónimo",
+  avatarUrl: "https://placehold.co/100x100.png?text=A",
+  email: null,
+  role: 'citizen',
+};
 
-async function submitReportAction(data: ReportFormData, userId: string, userDisplayName: string | null, userAvatarUrl?: string): Promise<{ success: boolean; message: string; reportId?: string }> {
-  console.log("Submitting report to Firestore:", data);
+async function submitReportAction(data: ReportFormData): Promise<{ success: boolean; message: string; reportId?: string }> {
+  console.log("Submitting report to Firestore (anonymously):", data);
 
   const newReportData = {
-    userId: userId,
-    user: { 
-      id: userId,
-      name: userDisplayName ?? "Usuario Anónimo",
-      avatarUrl: userAvatarUrl || "https://placehold.co/100x100.png", 
-      email: null, 
-      role: 'citizen',
-    },
+    userId: ANONYMOUS_USER_DATA.id,
+    user: ANONYMOUS_USER_DATA,
     category: data.category,
     description: data.description,
     urgency: data.urgency,
@@ -72,7 +73,7 @@ async function submitReportAction(data: ReportFormData, userId: string, userDisp
 
 export function ReportForm() {
   const { toast } = useToast();
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  // const { user, loading: authLoading, signInWithGoogle } = useAuth(); // Auth no longer used
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showMap, setShowMap] = useState(false);
@@ -148,15 +149,6 @@ export function ReportForm() {
 
 
   async function onSubmit(data: ReportFormData) {
-    if (!user) {
-      toast({
-        title: "Autenticación Requerida",
-        description: "Por favor, inicia sesión para enviar un reporte.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     if (!data.latitude || !data.longitude) {
         form.setError("latitude", { type: "manual", message: form.formState.errors.latitude?.message || "Por favor, selecciona una ubicación en el mapa o usa el GPS." });
@@ -164,7 +156,8 @@ export function ReportForm() {
         return;
     }
 
-    const result = await submitReportAction(data, user.id, user.name, user.avatarUrl);
+    // No user needed for submitReportAction anymore
+    const result = await submitReportAction(data);
     setIsSubmitting(false);
 
     if (result.success) {
@@ -182,15 +175,6 @@ export function ReportForm() {
         variant: "destructive",
       });
     }
-  }
-
-  if (authLoading && !user) { // Show a specific loading state if auth is loading and there's no user yet
-    return (
-      <div className="flex flex-col items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Verificando autenticación...</p>
-      </div>
-    );
   }
 
   return (
@@ -344,24 +328,11 @@ export function ReportForm() {
             />
         </FormItem>
 
-        {user ? (
-          <Button type="submit" disabled={isSubmitting || authLoading} className="w-full sm:w-auto">
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {authLoading && !isSubmitting ? "Verificando..." : "Enviar Reporte"}
-          </Button>
-        ) : (
-          <Button 
-            type="button" 
-            onClick={signInWithGoogle} 
-            disabled={authLoading} 
-            className="w-full sm:w-auto"
-          >
-            {authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {authLoading ? "Iniciando sesión..." : "Inicia Sesión para Reportar"}
-          </Button>
-        )}
+        <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Enviar Reporte
+        </Button>
       </form>
     </Form>
   );
 }
-
