@@ -48,6 +48,8 @@ export function ReportForm() {
       category: undefined,
       description: "",
       urgency: undefined,
+      latitude: null,
+      longitude: null,
     },
   });
 
@@ -207,8 +209,8 @@ export function ReportForm() {
                         Seleccionado: Lat: {selectedLocation.lat.toFixed(5)}, Lng: {selectedLocation.lng.toFixed(5)}
                     </p>
                 )}
-                <FormField control={form.control} name="latitude" render={({ field }) => <Input type="hidden" {...field} />} />
-                <FormField control={form.control} name="longitude" render={({ field }) => <Input type="hidden" {...field} />} />
+                <FormField control={form.control} name="latitude" render={({ field }) => <Input type="hidden" {...field} value={field.value ?? ''} />} />
+                <FormField control={form.control} name="longitude" render={({ field }) => <Input type="hidden" {...field} value={field.value ?? ''} />} />
                 <FormMessage>{form.formState.errors.latitude?.message || form.formState.errors.longitude?.message}</FormMessage>
             </div>
         </FormItem>
