@@ -7,7 +7,7 @@ const categories = REPORT_CATEGORIES as [string, ...string[]];
 const urgencies = REPORT_URGENCIES as [string, ...string[]];
 
 export const reportSchema = z.object({
-  category: z.enum(categories, { 
+  category: z.enum(categories, {
     required_error: "La categoría es obligatoria.",
   }),
   subCategory: z.string().optional(),
@@ -19,6 +19,12 @@ export const reportSchema = z.object({
   }),
   latitude: z.number({ required_error: "La ubicación es obligatoria." }).min(-90).max(90),
   longitude: z.number({ required_error: "La ubicación es obligatoria." }).min(-180).max(180),
+  media: z.array(z.object({
+    type: z.literal('image'),
+    url: z.string().url({ message: "URL de imagen inválida." }), // Data URI will be a string
+    dataAiHint: z.string().optional(),
+  })).optional(),
 });
 
 export type ReportFormData = z.infer<typeof reportSchema>;
+

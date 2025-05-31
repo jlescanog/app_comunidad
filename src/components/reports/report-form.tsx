@@ -21,16 +21,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { REPORT_CATEGORIES, REPORT_URGENCIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { ReportMap } from "@/components/map/report-map"; 
+import { ReportMap } from "@/components/map/report-map";
 import { Loader2, MapPinIcon, UploadCloudIcon } from "lucide-react";
-import type { Report } from "@/types";
+import type { Report, ReportMedia } from "@/types";
 import { addSessionReport } from "@/lib/session-store";
 import { MOCK_USER_LOGGED_IN } from "@/lib/mock-data"; // Para asociar el reporte al usuario mock
+import Image from 'next/image';
+
 
 // Mock server action
 async function submitReportAction(data: ReportFormData): Promise<{ success: boolean; message: string; reportId?: string }> {
   console.log("Submitting report:", data);
-  
+
   const newReport: Report = {
     id: `session-report-${Date.now()}`,
     userId: MOCK_USER_LOGGED_IN.id, // Asociar con el usuario mock "user-123"
@@ -43,7 +45,7 @@ async function submitReportAction(data: ReportFormData): Promise<{ success: bool
       longitude: data.longitude!, // Sabemos que está validado por el schema y la lógica onSubmit
       address: `Lat: ${data.latitude!.toFixed(4)}, Lng: ${data.longitude!.toFixed(4)}`, // Dirección simple por ahora
     },
-    media: [], // Reportes de formulario no tendrán media por ahora en esta simulación
+    media: data.media || [], // Usar media del form data
     status: "Pendiente",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -56,7 +58,7 @@ async function submitReportAction(data: ReportFormData): Promise<{ success: bool
   addSessionReport(newReport); // Añadir al almacén de sesión
 
   await new Promise(resolve => setTimeout(resolve, 1000)); // Simular delay de red
-  
+
   if (Math.random() > 0.05) { // Aumentar la probabilidad de éxito para pruebas
     return { success: true, message: "¡Reporte enviado exitosamente (en sesión)!", reportId: newReport.id };
   } else {
@@ -70,6 +72,7 @@ export function ReportForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
 
   const form = useForm<ReportFormData>({
     resolver: zodResolver(reportSchema),
@@ -79,6 +82,7 @@ export function ReportForm() {
       urgency: undefined,
       latitude: null,
       longitude: null,
+      media: [],
     },
   });
 
@@ -91,10 +95,10 @@ export function ReportForm() {
 
   const handleMapClick = (coords: { lat: number; lng: number }) => {
     setSelectedLocation(coords);
-    setShowMap(false); 
+    setShowMap(false);
     toast({ title: "Ubicación Seleccionada", description: `Lat: ${coords.lat.toFixed(4)}, Lng: ${coords.lng.toFixed(4)}`});
   };
-  
+
   const handleUseGPS = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -117,6 +121,28 @@ export function ReportForm() {
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUri = reader.result as string;
+        setSelectedImagePreview(dataUri);
+        const newMedia: ReportMedia = { type: 'image', url: dataUri, dataAiHint: 'uploaded image' };
+        form.setValue('media', [newMedia], { shouldValidate: true });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setSelectedImagePreview(null);
+      form.setValue('media', [], { shouldValidate: true });
+      if (file) {
+        toast({ title: "Archivo no válido", description: "Por favor, selecciona un archivo de imagen.", variant: "destructive" });
+      }
+    }
+    // Reset file input to allow re-selection of the same file after clearing
+    event.target.value = '';
+  };
+
 
   async function onSubmit(data: ReportFormData) {
     setIsSubmitting(true);
@@ -125,7 +151,7 @@ export function ReportForm() {
         setIsSubmitting(false);
         return;
     }
-    
+
     const result = await submitReportAction(data);
     setIsSubmitting(false);
 
@@ -134,8 +160,9 @@ export function ReportForm() {
         title: "¡Reporte Enviado!",
         description: result.message,
       });
-      form.reset();
+      form.reset(); // This will reset to defaultValues, including media: []
       setSelectedLocation(null);
+      setSelectedImagePreview(null);
     } else {
       toast({
         title: "Envío Fallido",
@@ -221,7 +248,7 @@ export function ReportForm() {
             </FormItem>
           )}
         />
-        
+
         <FormItem>
             <FormLabel>Ubicación</FormLabel>
             <div className="space-y-2">
@@ -239,39 +266,61 @@ export function ReportForm() {
                 )}
                 <FormField control={form.control} name="latitude" render={({ field }) => <Input type="hidden" {...field} value={field.value ?? ''} />} />
                 <FormField control={form.control} name="longitude" render={({ field }) => <Input type="hidden" {...field} value={field.value ?? ''} />} />
-                <FormMessage>{form.formState.errors.latitude?.message || form.formState.errors.longitude?.message}</FormMessage>
+                { (form.formState.errors.latitude || form.formState.errors.longitude) &&
+                    <FormMessage>{form.formState.errors.latitude?.message || form.formState.errors.longitude?.message}</FormMessage>
+                }
             </div>
         </FormItem>
 
         {showMap && (
             <div className="h-[400px] w-full rounded-md border overflow-hidden my-4">
-            <ReportMap 
-                reports={[]} 
-                isInteractiveFormMap={true} 
-                onMapClick={handleMapClick} 
+            <ReportMap
+                reports={[]}
+                isInteractiveFormMap={true}
+                onMapClick={handleMapClick}
                 selectedLocation={selectedLocation}
             />
             </div>
         )}
 
         <FormItem>
-            <FormLabel>Multimedia (Fotos/Video)</FormLabel>
+            <FormLabel>Multimedia (Foto)</FormLabel>
             <FormControl>
                  <div className="flex items-center justify-center w-full">
                     <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-muted transition-colors">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <UploadCloudIcon className="w-8 h-8 mb-2 text-muted-foreground"/>
                             <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Haz clic para subir</span> o arrastra y suelta</p>
-                            <p className="text-xs text-muted-foreground">Fotos (máx. 5) o un video corto (máx. 15s)</p>
+                            <p className="text-xs text-muted-foreground">Una foto (máx. 5MB)</p>
                         </div>
-                        <Input id="dropzone-file" type="file" className="hidden" multiple accept="image/*,video/mp4,video/quicktime" />
+                        <Input
+                          id="dropzone-file"
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                        />
                     </label>
-                </div> 
+                </div>
             </FormControl>
             <FormDescription>
-                Adjunta fotos relevantes o un video corto del incidente.
+                Adjunta una foto relevante del incidente.
             </FormDescription>
-            <FormMessage />
+            <FormField
+                control={form.control}
+                name="media"
+                render={({ field }) => (
+                    <>
+                        {field.value && field.value.length > 0 && selectedImagePreview && (
+                             <div className="mt-4">
+                                <FormLabel>Vista Previa de Imagen:</FormLabel>
+                                <Image src={selectedImagePreview} alt="Vista previa de imagen cargada" width={200} height={150} className="mt-2 rounded-md max-h-48 w-auto border object-contain" data-ai-hint="uploaded image preview" />
+                             </div>
+                        )}
+                        <FormMessage />
+                    </>
+                )}
+            />
         </FormItem>
 
         <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
