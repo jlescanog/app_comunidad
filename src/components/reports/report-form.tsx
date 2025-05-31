@@ -23,15 +23,44 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { ReportMap } from "@/components/map/report-map"; 
 import { Loader2, MapPinIcon, UploadCloudIcon } from "lucide-react";
+import type { Report } from "@/types";
+import { addSessionReport } from "@/lib/session-store";
+import { MOCK_USER_LOGGED_IN } from "@/lib/mock-data"; // Para asociar el reporte al usuario mock
 
 // Mock server action
 async function submitReportAction(data: ReportFormData): Promise<{ success: boolean; message: string; reportId?: string }> {
   console.log("Submitting report:", data);
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  if (Math.random() > 0.1) { 
-    return { success: true, message: "¡Reporte enviado exitosamente!", reportId: `report-${Date.now()}` };
+  
+  const newReport: Report = {
+    id: `session-report-${Date.now()}`,
+    userId: MOCK_USER_LOGGED_IN.id, // Asociar con el usuario mock "user-123"
+    user: MOCK_USER_LOGGED_IN, // Adjuntar el objeto de usuario mock
+    category: data.category,
+    description: data.description,
+    urgency: data.urgency,
+    location: {
+      latitude: data.latitude!, // Sabemos que está validado por el schema y la lógica onSubmit
+      longitude: data.longitude!, // Sabemos que está validado por el schema y la lógica onSubmit
+      address: `Lat: ${data.latitude!.toFixed(4)}, Lng: ${data.longitude!.toFixed(4)}`, // Dirección simple por ahora
+    },
+    media: [], // Reportes de formulario no tendrán media por ahora en esta simulación
+    status: "Pendiente",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    upvotes: 0,
+    downvotes: 0,
+    currentUserVote: null,
+    internalComments: [],
+  };
+
+  addSessionReport(newReport); // Añadir al almacén de sesión
+
+  await new Promise(resolve => setTimeout(resolve, 1000)); // Simular delay de red
+  
+  if (Math.random() > 0.05) { // Aumentar la probabilidad de éxito para pruebas
+    return { success: true, message: "¡Reporte enviado exitosamente (en sesión)!", reportId: newReport.id };
   } else {
-    return { success: false, message: "No se pudo enviar el reporte. Por favor, inténtalo de nuevo." };
+    return { success: false, message: "No se pudo enviar el reporte (simulación de error)." };
   }
 }
 
@@ -92,7 +121,6 @@ export function ReportForm() {
   async function onSubmit(data: ReportFormData) {
     setIsSubmitting(true);
     if (!data.latitude || !data.longitude) {
-        // The message for this error comes from the schema in src/schemas/report.ts
         form.setError("latitude", { type: "manual", message: form.formState.errors.latitude?.message || "Por favor, selecciona una ubicación en el mapa o usa el GPS." });
         setIsSubmitting(false);
         return;
