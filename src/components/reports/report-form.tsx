@@ -35,11 +35,11 @@ async function submitReportAction(data: ReportFormData, userId: string, userDisp
 
   const newReportData = {
     userId: userId,
-    user: { // Denormalizing some user info for easier display on reports
+    user: { 
       id: userId,
-      name: userDisplayName,
-      avatarUrl: userAvatarUrl || "https://placehold.co/100x100.png", // Fallback avatar
-      email: null, // Not storing email directly in report for privacy in this example
+      name: userDisplayName ?? "Usuario Anónimo",
+      avatarUrl: userAvatarUrl || "https://placehold.co/100x100.png", 
+      email: null, 
       role: 'citizen',
     },
     category: data.category,
@@ -51,7 +51,7 @@ async function submitReportAction(data: ReportFormData, userId: string, userDisp
       address: `Lat: ${data.latitude!.toFixed(4)}, Lng: ${data.longitude!.toFixed(4)}`,
     },
     media: data.media || [],
-    status: "Pendiente" as const, // Explicitly type as ReportStatus
+    status: "Pendiente" as const, 
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     upvotes: 0,
@@ -72,7 +72,7 @@ async function submitReportAction(data: ReportFormData, userId: string, userDisp
 
 export function ReportForm() {
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showMap, setShowMap] = useState(false);
@@ -184,8 +184,13 @@ export function ReportForm() {
     }
   }
 
-  if (authLoading) {
-    return <div className="text-center p-8">Cargando autenticación...</div>;
+  if (authLoading && !user) { // Show a specific loading state if auth is loading and there's no user yet
+    return (
+      <div className="flex flex-col items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Verificando autenticación...</p>
+      </div>
+    );
   }
 
   return (
@@ -330,7 +335,7 @@ export function ReportForm() {
                         {field.value && field.value.length > 0 && selectedImagePreview && (
                              <div className="mt-4">
                                 <FormLabel>Vista Previa de Imagen:</FormLabel>
-                                <Image src={selectedImagePreview} alt="Vista previa de imagen cargada" width={200} height={150} className="mt-2 rounded-md max-h-48 w-auto border object-contain" data-ai-hint="uploaded image preview" />
+                                <Image src={selectedImagePreview} alt="Vista previa de imagen cargada" width={200} height={150} className="mt-2 rounded-md max-h-48 w-auto border object-contain" data-ai-hint="uploaded image preview"/>
                              </div>
                         )}
                         <FormMessage />
@@ -339,11 +344,24 @@ export function ReportForm() {
             />
         </FormItem>
 
-        <Button type="submit" disabled={isSubmitting || authLoading || !user} className="w-full sm:w-auto">
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {authLoading ? "Verificando usuario..." : !user ? "Inicia Sesión para Reportar" : "Enviar Reporte"}
-        </Button>
+        {user ? (
+          <Button type="submit" disabled={isSubmitting || authLoading} className="w-full sm:w-auto">
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {authLoading && !isSubmitting ? "Verificando..." : "Enviar Reporte"}
+          </Button>
+        ) : (
+          <Button 
+            type="button" 
+            onClick={signInWithGoogle} 
+            disabled={authLoading} 
+            className="w-full sm:w-auto"
+          >
+            {authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {authLoading ? "Iniciando sesión..." : "Inicia Sesión para Reportar"}
+          </Button>
+        )}
       </form>
     </Form>
   );
 }
+
