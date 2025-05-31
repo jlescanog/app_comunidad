@@ -1,6 +1,6 @@
 import type { ReportCategory } from '@/types';
 import {
-  Wrench, Building, AlertTriangle, CarCrash, Droplets, CloudFog, Dog, ShieldAlert, TriangleAlert, Info, HelpCircle, Siren, Zap, TrafficCone, Trash2, SprayCan
+  Wrench, Building, AlertTriangle, Car, Droplets, CloudFog, Dog, ShieldAlert, TriangleAlert, Info, HelpCircle, Siren, Zap, TrafficCone, Trash2, SprayCan
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 
@@ -15,7 +15,7 @@ export function CategoryIcon({ category, ...props }: CategoryIconProps) {
     case 'Obstacles':
       return <TrafficCone {...props} />;
     case 'Abandoned Vehicles':
-      return <CarCrash {...props} />;
+      return <Car {...props} />;
     case 'Drainage Issues':
       return <Droplets {...props} />;
     case 'Pollution':
