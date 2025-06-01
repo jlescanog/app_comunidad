@@ -4,8 +4,15 @@
 import Link from "next/link";
 import { siteConfig } from "@/config/site";
 import { Button } from "@/components/ui/button";
-// import { AuthButton } from "@/components/auth/auth-button"; // AuthButton removed
-import { TestTubeDiagonalIcon } from "lucide-react"; 
+import { TestTubeDiagonalIcon, MenuIcon } from "lucide-react"; 
+import {
+  Sheet,
+  SheetContent,
+  SheetClose,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 export function Navbar() {
   return (
@@ -15,6 +22,8 @@ export function Navbar() {
           <TestTubeDiagonalIcon className="h-6 w-6 text-primary" />
           <span className="font-headline font-bold text-lg text-primary">{siteConfig.name}</span>
         </Link>
+        
+        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
           {siteConfig.mainNav.map((item) => (
             <Link
@@ -26,14 +35,40 @@ export function Navbar() {
             </Link>
           ))}
         </nav>
-        <div className="flex flex-1 items-center justify-end space-x-4">
-          {/* <AuthButton /> Removed */}
+
+        <div className="flex flex-1 items-center justify-end space-x-4 md:hidden">
+          {/* Mobile Navigation Menu */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MenuIcon className="h-6 w-6" />
+                <span className="sr-only">Alternar menú</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left">
+              <SheetHeader className="mb-6">
+                <SheetTitle>
+                  <Link href="/" className="flex items-center space-x-2">
+                    <TestTubeDiagonalIcon className="h-6 w-6 text-primary" />
+                    <span className="font-headline font-bold text-lg text-primary">{siteConfig.name}</span>
+                  </Link>
+                </SheetTitle>
+              </SheetHeader>
+              <nav className="flex flex-col space-y-4">
+                {siteConfig.mainNav.map((item) => (
+                  <SheetClose asChild key={item.href}>
+                    <Link
+                      href={item.href}
+                      className="text-lg font-medium transition-colors hover:text-primary"
+                    >
+                      {item.title}
+                    </Link>
+                  </SheetClose>
+                ))}
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
-        
-        <Button variant="ghost" className="md:hidden">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
-          <span className="sr-only">Alternar menú</span>
-        </Button>
       </div>
     </header>
   );
