@@ -18,31 +18,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { REPORT_CATEGORIES, REPORT_URGENCIES } from "@/lib/constants";
+import { REPORT_CATEGORIES, REPORT_URGENCIES, DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { ReportMap } from "@/components/map/report-map";
 import { Loader2, MapPinIcon, UploadCloudIcon } from "lucide-react";
 import type { ReportMedia, User } from "@/types";
-// import { useAuth } from "@/hooks/use-auth"; // Auth no longer used here
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import Image from 'next/image';
+import { MOCK_ANONYMOUS_USER } from "@/hooks/use-auth";
 
-const ANONYMOUS_USER_DATA: User = {
-  id: "anonymous-user",
-  name: "Usuario Anónimo",
-  avatarUrl: "https://placehold.co/100x100.png?text=A",
-  email: null,
-  role: 'citizen',
-};
 
 async function submitReportAction(data: ReportFormData): Promise<{ success: boolean; message: string; reportId?: string }> {
   console.log("Submitting report to Firestore (anonymously):", data);
 
   const newReportData = {
-    userId: ANONYMOUS_USER_DATA.id,
-    user: ANONYMOUS_USER_DATA,
+    userId: MOCK_ANONYMOUS_USER.id,
+    user: MOCK_ANONYMOUS_USER,
     category: data.category,
     description: data.description,
     urgency: data.urgency,
@@ -52,7 +45,7 @@ async function submitReportAction(data: ReportFormData): Promise<{ success: bool
       address: `Lat: ${data.latitude!.toFixed(4)}, Lng: ${data.longitude!.toFixed(4)}`,
     },
     media: data.media || [],
-    status: "Pendiente" as const, 
+    status: "Pendiente" as const,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     upvotes: 0,
@@ -63,17 +56,18 @@ async function submitReportAction(data: ReportFormData): Promise<{ success: bool
 
   try {
     const docRef = await addDoc(collection(db, "reports"), newReportData);
+    console.log("Report submitted successfully to Firestore, ID:", docRef.id);
     return { success: true, message: "¡Reporte enviado exitosamente a Firestore!", reportId: docRef.id };
   } catch (error) {
-    console.error("Error adding document: ", error);
-    return { success: false, message: "No se pudo enviar el reporte a Firestore." };
+    console.error("Error adding document to Firestore: ", error);
+    const errorMessage = error instanceof Error ? error.message : "No se pudo enviar el reporte a Firestore debido a un error desconocido.";
+    return { success: false, message: errorMessage };
   }
 }
 
 
 export function ReportForm() {
   const { toast } = useToast();
-  // const { user, loading: authLoading, signInWithGoogle } = useAuth(); // Auth no longer used
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showMap, setShowMap] = useState(false);
@@ -100,6 +94,8 @@ export function ReportForm() {
 
   const handleMapClick = (coords: { lat: number; lng: number }) => {
     setSelectedLocation(coords);
+    form.setValue("latitude", coords.lat, { shouldValidate: true });
+    form.setValue("longitude", coords.lng, { shouldValidate: true });
     setShowMap(false);
     toast({ title: "Ubicación Seleccionada", description: `Lat: ${coords.lat.toFixed(4)}, Lng: ${coords.lng.toFixed(4)}`});
   };
@@ -156,24 +152,33 @@ export function ReportForm() {
         return;
     }
 
-    // No user needed for submitReportAction anymore
-    const result = await submitReportAction(data);
-    setIsSubmitting(false);
+    try {
+      const result = await submitReportAction(data);
 
-    if (result.success) {
+      if (result.success) {
+        toast({
+          title: "¡Reporte Enviado!",
+          description: result.message,
+        });
+        form.reset();
+        setSelectedLocation(null);
+        setSelectedImagePreview(null);
+      } else {
+        toast({
+          title: "Envío Fallido",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error inesperado en onSubmit del formulario de reporte:", error);
       toast({
-        title: "¡Reporte Enviado!",
-        description: result.message,
-      });
-      form.reset(); 
-      setSelectedLocation(null);
-      setSelectedImagePreview(null);
-    } else {
-      toast({
-        title: "Envío Fallido",
-        description: result.message,
+        title: "Error Inesperado",
+        description: "Ocurrió un error al procesar tu solicitud. Intenta de nuevo.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -269,23 +274,26 @@ export function ReportForm() {
                         Seleccionado: Lat: {selectedLocation.lat.toFixed(5)}, Lng: {selectedLocation.lng.toFixed(5)}
                     </p>
                 )}
+                {/* Hidden inputs for latitude and longitude to be included in form data */}
                 <FormField control={form.control} name="latitude" render={({ field }) => <Input type="hidden" {...field} value={field.value ?? ''} />} />
                 <FormField control={form.control} name="longitude" render={({ field }) => <Input type="hidden" {...field} value={field.value ?? ''} />} />
-                { (form.formState.errors.latitude || form.formState.errors.longitude) &&
+                 { (form.formState.errors.latitude || form.formState.errors.longitude) &&
                     <FormMessage>{form.formState.errors.latitude?.message || form.formState.errors.longitude?.message}</FormMessage>
                 }
             </div>
         </FormItem>
 
         {showMap && (
-            <div className="h-[400px] w-full rounded-md border overflow-hidden my-4">
+          <div className="h-[400px] w-full rounded-md border overflow-hidden my-4">
             <ReportMap
-                reports={[]}
-                isInteractiveFormMap={true}
-                onMapClick={handleMapClick}
-                selectedLocation={selectedLocation}
+              reports={[]}
+              initialCenter={DEFAULT_MAP_CENTER}
+              initialZoom={15} // Zoom in a bit more for form selection
+              isInteractiveFormMap={true}
+              onMapClick={handleMapClick}
+              selectedLocation={selectedLocation}
             />
-            </div>
+          </div>
         )}
 
         <FormItem>
