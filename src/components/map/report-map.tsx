@@ -2,18 +2,19 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { APIProvider, Map, AdvancedMarker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import type { Report } from '@/types';
-import { GOOGLE_MAPS_API_KEY, URGENCY_HSL_COLORS } from '@/lib/constants';
+import { GOOGLE_MAPS_API_KEY, URGENCY_HSL_COLORS, DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/lib/constants';
 import { ReportCardMini } from '@/components/reports/report-card-mini';
 import { CategoryIcon } from '@/components/icons/category-icon';
 import { MapFilters } from './map-filters';
-import { Button } from '../ui/button';
-import { LocateFixedIcon } from 'lucide-react';
+import { LocateFixedIcon, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReportMapProps {
   reports: Report[];
   initialCenter?: { lat: number; lng: number };
+  initialZoom?: number;
   onMarkerClick?: (reportId: string) => void;
   isInteractiveFormMap?: boolean; 
   onMapClick?: (coords: { lat: number; lng: number }) => void; 
@@ -22,21 +23,63 @@ interface ReportMapProps {
 
 export function ReportMap({
   reports,
-  initialCenter = { lat: 34.052235, lng: -118.243683 }, 
+  initialCenter, // This might be overridden by geolocation
+  initialZoom,   // This might be overridden
   onMarkerClick,
   isInteractiveFormMap = false,
   onMapClick,
   selectedLocation,
 }: ReportMapProps) {
   const [activeReportId, setActiveReportId] = useState<string | null>(null);
-  const [mapCenter, setMapCenter] = useState(initialCenter);
-  const [mapZoom, setMapZoom] = useState(isInteractiveFormMap ? 15 : 12);
+  const [mapCenter, setMapCenter] = useState(initialCenter || DEFAULT_MAP_CENTER);
+  const [mapZoom, setMapZoom] = useState(initialZoom || (isInteractiveFormMap ? 15 : DEFAULT_MAP_ZOOM));
+  const [isGeolocating, setIsGeolocating] = useState(!isInteractiveFormMap && !initialCenter); // Geolocate if not form map and no initial center
+  const { toast } = useToast();
 
-  const handleMarkerClick = (reportId: string) => {
+  useEffect(() => {
+    if (!isInteractiveFormMap && !initialCenter && navigator.geolocation) {
+      setIsGeolocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setMapCenter(userLocation);
+          setMapZoom(14); // Zoom in a bit more for user's location
+          setIsGeolocating(false);
+          toast({ title: "Ubicación Encontrada", description: "Mapa centrado en tu ubicación actual." });
+        },
+        (error) => {
+          console.warn("Error obteniendo geolocalización:", error.message);
+          setMapCenter(DEFAULT_MAP_CENTER); // Fallback to Tacna
+          setMapZoom(DEFAULT_MAP_ZOOM);
+          setIsGeolocating(false);
+          if (error.code === error.PERMISSION_DENIED) {
+            toast({ title: "Geolocalización Denegada", description: "Mostrando ubicación predeterminada. Habilita los permisos de ubicación para centrar el mapa en tu posición.", variant: "default", duration: 7000 });
+          } else {
+            toast({ title: "Error de Geolocalización", description: "No se pudo obtener tu ubicación. Mostrando ubicación predeterminada.", variant: "destructive" });
+          }
+        },
+        { timeout: 10000 } // 10 seconds timeout
+      );
+    } else {
+      // If initialCenter is provided or it's an interactive form map, don't geolocate.
+      // If initialCenter is provided, it's already set by useState.
+      // If it's an interactive map, it usually starts at a default broad view or where the user clicks.
+      setIsGeolocating(false);
+      if (initialCenter) setMapCenter(initialCenter);
+      if (initialZoom) setMapZoom(initialZoom);
+    }
+  }, [isInteractiveFormMap, initialCenter, initialZoom, toast]);
+
+
+  const handleMarkerClickInternal = (reportId: string) => {
     setActiveReportId(reportId);
     const report = reports.find(r => r.id === reportId);
     if (report) {
       setMapCenter({ lat: report.location.latitude, lng: report.location.longitude });
+      setMapZoom(15); // Zoom in on selected marker
     }
     if (onMarkerClick) {
       onMarkerClick(reportId);
@@ -53,30 +96,46 @@ export function ReportMap({
       </div>
     );
   }
+  
+  if (isGeolocating && !isInteractiveFormMap) {
+    return (
+      <div className="h-[500px] md:h-[600px] w-full rounded-lg shadow-lg flex flex-col items-center justify-center bg-muted/50">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
+        <p className="text-muted-foreground">Obteniendo tu ubicación...</p>
+      </div>
+    );
+  }
 
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
       <div className="h-[500px] md:h-[600px] w-full rounded-lg overflow-hidden shadow-lg relative">
         {!isInteractiveFormMap && <MapFilters />}
         <Map
-          defaultCenter={initialCenter}
           center={mapCenter}
-          defaultZoom={12}
           zoom={mapZoom}
           gestureHandling={'greedy'}
           disableDefaultUI={false}
-          mapId="communitypulse_map"
+          mapId="communitypulse_map_main"
           onClick={isInteractiveFormMap && onMapClick ? (e) => {
             if(e.detail.latLng) {
               onMapClick({lat: e.detail.latLng.lat, lng: e.detail.latLng.lng})
             }
           } : undefined}
+          onBoundsChanged={(e) => {
+            if (!isInteractiveFormMap) { // Only update center/zoom if not in form mode
+              const newCenter = e.map.getCenter();
+              if (newCenter) {
+                setMapCenter({ lat: newCenter.lat(), lng: newCenter.lng() });
+              }
+              setMapZoom(e.map.getZoom() || DEFAULT_MAP_ZOOM);
+            }
+          }}
         >
           {!isInteractiveFormMap && reports.map((report) => (
             <AdvancedMarker
               key={report.id}
               position={{ lat: report.location.latitude, lng: report.location.longitude }}
-              onClick={() => handleMarkerClick(report.id)}
+              onClick={() => handleMarkerClickInternal(report.id)}
             >
               <PinIcon report={report} />
             </AdvancedMarker>
@@ -110,7 +169,7 @@ export function ReportMap({
 
 function PinIcon({ report }: { report: Report }) {
   const pinColor = URGENCY_HSL_COLORS[report.urgency] || 'hsl(var(--muted))';
-  const isCritical = report.urgency === 'Crítica'; // Check against translated value
+  const isCritical = report.urgency === 'Crítica';
 
   return (
     <div
@@ -146,3 +205,4 @@ function MapInstructions() {
     </div>
   );
 }
+

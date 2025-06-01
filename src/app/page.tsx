@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 async function fetchAllReportsFromFirestore(): Promise<Report[]> {
   try {
     const reportsRef = collection(db, "reports");
-    const q = firestoreQuery(reportsRef, orderBy("createdAt", "desc")); // Order by creation time
+    const q = firestoreQuery(reportsRef, orderBy("createdAt", "desc")); 
     const querySnapshot = await getDocs(q);
     const reports: Report[] = [];
     querySnapshot.forEach((doc) => {
@@ -19,7 +19,6 @@ async function fetchAllReportsFromFirestore(): Promise<Report[]> {
       reports.push({
         id: doc.id,
         ...data,
-        // Ensure createdAt and updatedAt are ISO strings
         createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
         updatedAt: (data.updatedAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
       } as Report);
@@ -54,11 +53,12 @@ export default function HomePage() {
         </p>
       </section>
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center min-h-[300px]">
+        <div className="flex flex-col items-center justify-center min-h-[300px] md:min-h-[600px]"> {/* Ensure height for loader too */}
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
           <p className="text-muted-foreground">Cargando mapa y reportes...</p>
         </div>
       ) : (
+        // No initialCenter or initialZoom is passed, ReportMap will handle geolocation
         <ReportMap reports={reports} />
       )}
     </div>

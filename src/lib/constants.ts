@@ -52,3 +52,7 @@ export const MAX_VIDEO_DURATION_SECONDS = 15;
 export const MAX_PHOTO_UPLOADS = 5;
 
 export const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+
+// Default coordinates set to Tacna, Peru
+export const DEFAULT_MAP_CENTER = { lat: -18.0146, lng: -70.2536 };
+export const DEFAULT_MAP_ZOOM = 13;
