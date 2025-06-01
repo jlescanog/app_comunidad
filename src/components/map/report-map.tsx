@@ -143,7 +143,7 @@ export function ReportMap({
 
           {isInteractiveFormMap && selectedLocation && (
              <AdvancedMarker
-              position={{ lat: selectedLocation.latitude, lng: selectedLocation.longitude }}
+              position={{ lat: selectedLocation.lat, lng: selectedLocation.lng }}
             >
                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-md transform -translate-x-1/2 -translate-y-full">
                 <LocateFixedIcon className="w-5 h-5 text-primary-foreground" />
