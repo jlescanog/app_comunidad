@@ -14,7 +14,7 @@ Aplicación web construida con Next.js, TypeScript, Tailwind CSS y Firebase Fire
 1. **Clonar el repositorio:**
 
 ```bash
-git clone <https://github.com/jlescanog/app_comunidad.git>
+git clone https://github.com/jlescanog/app_comunidad.git
 cd app_comunidad
 ```
 
